@@ -21,7 +21,7 @@ Prerequisites
 To run this application, you need to have a C++ compiler installed on your system. You can use GCC, Clang, or any C++ compiler of your choice.
 
 Running the Program
-git clone https://github.com/your-username/task-manager.git
+git clone https://github.com//Mingro-arts/TaskMan.git
 
 Navigate to the project directory:
 cd task-manager
