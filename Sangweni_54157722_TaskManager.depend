@@ -1,0 +1,9 @@
+# depslib dependency file v1.0
+1727636583 source:c:\users\mzwan\downloads\sangweni_54157722_taskmanager\main.cpp
+	<iostream>
+	<string>
+	<vector>
+	<fstream>
+	<memory>
+	<limits>
+
