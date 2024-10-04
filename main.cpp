@@ -4,6 +4,7 @@
 #include <fstream>
 #include <memory>
 #include <limits>
+#include <algorithm>  // For sort function
 
 using namespace std;
 
@@ -51,11 +52,21 @@ namespace TaskManagerApp {
     // Global vector of unique pointers to manage tasks
     vector<unique_ptr<Task>> taskList;
 
+    // Function to generate auto-incrementing task ID
+    int generateTaskID() {
+        static int currentID = 1;
+        if (!taskList.empty()) {
+            currentID = taskList.back()->getTaskID() + 1;
+        }
+        return currentID++;
+    }
+
     // Function to add a task
-    void addTask(int id, const string& title, const string& description, int priority, const string& dueDate) {
+    void addTask(const string& title, const string& description, int priority, const string& dueDate) {
+        int id = generateTaskID();
         unique_ptr<Task> newTask = make_unique<Task>(id, title, description, priority, dueDate);
         taskList.push_back(move(newTask));
-        cout << "Task added successfully.\n";
+        cout << "Task added successfully with ID " << id << ".\n";
     }
 
     // Function to remove a task by ID
@@ -102,106 +113,145 @@ namespace TaskManagerApp {
     }
 
     // Function to save tasks to a file
-    void saveTasksToFile() {
-    ofstream outFile("tasks.txt");
-    if (outFile.is_open()) {
-        outFile << "This Your List Of Tasks To Do "<< endl;
-        outFile << "==============================" <<endl;
-        for (const auto& task : taskList) {
-
-            outFile << "Task ID: " << task->getTaskID() << "\n"
-                    << "Title: " << task->getTitle() << "\n"
-                    << "Description: " << task->getDescription() << "\n"
-                    << "Priority: " << task->getPriority() << "\n"
-                    << "Due Date: " << task->getDueDate() << "\n"
-                    << "Completed: " << (task->isTaskCompleted() ? "Yes" : "No") << "\n"
-                    << "---------------------------\n";  // Separate tasks with a line
+    void saveTasksToFile(const string& filename) {
+        ofstream outFile(filename);
+        if (outFile.is_open()) {
+            outFile << "This is your list of tasks to do:\n";
+            outFile << "==============================\n";
+            for (const auto& task : taskList) {
+                outFile << "Task ID: " << task->getTaskID() << "\n"
+                        << "Title: " << task->getTitle() << "\n"
+                        << "Description: " << task->getDescription() << "\n"
+                        << "Priority: " << task->getPriority() << "\n"
+                        << "Due Date: " << task->getDueDate() << "\n"
+                        << "Completed: " << (task->isTaskCompleted() ? "Yes" : "No") << "\n"
+                        << "---------------------------\n";  // Separate tasks with a line
+            }
+            outFile.close();
+            cout << "Tasks saved to file.\n";
+        } else {
+            cerr << "Error: Unable to open file for writing.\n";
         }
-        outFile.close();
-        cout << "Tasks saved to file.\n";
-    } else {
-        cerr << "Error: Unable to open file for writing.\n";
     }
-}
-
 
     // Function to load tasks from a file
-    void loadTasksFromFile() {
-    ifstream inFile("tasks2.txt");
-    if (inFile.is_open()) {
-        taskList.clear();  // Clear any existing tasks before loading new ones
+    void loadTasksFromFile(const string& filename) {
+        ifstream inFile(filename);
+        if (inFile.is_open()) {
+            taskList.clear();  // Clear any existing tasks before loading new ones
 
-        while (!inFile.eof()) {
-            int id, priority;
-            string title, description, dueDate;
-            bool isCompleted;
-            string line, completedStatus;
+            while (!inFile.eof()) {
+                int id, priority;
+                string title, description, dueDate;
+                bool isCompleted;
+                string line, completedStatus;
 
-            // Read labeled lines, skipping the labels
-            getline(inFile, line); // Read "Task ID:"
-            if (line.empty()) break; // Break if there's an empty line (EOF or file structure ends)
+                getline(inFile, line); // Read "Task ID:"
+                if (line.empty()) break;
 
-            inFile >> id;  // Read task ID
-            inFile.ignore();  // Ignore the newline character
+                inFile >> id;  // Read task ID
+                inFile.ignore();
 
-            getline(inFile, line); // Read "Title:"
-            getline(inFile, title); // Read actual title
+                getline(inFile, line); // Read "Title:"
+                getline(inFile, title);
 
-            getline(inFile, line); // Read "Description:"
-            getline(inFile, description); // Read actual description
+                getline(inFile, line); // Read "Description:"
+                getline(inFile, description);
 
-            getline(inFile, line); // Read "Priority:"
-            inFile >> priority;  // Read actual priority
-            inFile.ignore();  // Ignore the newline character
+                getline(inFile, line); // Read "Priority:"
+                inFile >> priority;
+                inFile.ignore();
 
-            getline(inFile, line); // Read "Due Date:"
-            getline(inFile, dueDate); // Read actual due date
+                getline(inFile, line); // Read "Due Date:"
+                getline(inFile, dueDate);
 
-            getline(inFile, line); // Read "Completed:"
-            getline(inFile, completedStatus);  // Read if completed ("Yes" or "No")
+                getline(inFile, line); // Read "Completed:"
+                getline(inFile, completedStatus);
+                isCompleted = (completedStatus == "Yes");
 
-            // Check completion status
-            isCompleted = (completedStatus == "Yes");
+                getline(inFile, line);  // Skip the separator line
 
-            // Skip the separator line
-            getline(inFile, line);
-
-            // Create a new Task object with the loaded data
-            auto task = make_unique<Task>(id, title, description, priority, dueDate);
-            if (isCompleted) {
-                task->markAsCompleted();
+                auto task = make_unique<Task>(id, title, description, priority, dueDate);
+                if (isCompleted) {
+                    task->markAsCompleted();
+                }
+                taskList.push_back(move(task));
             }
-
-            taskList.push_back(move(task));  // Add the task to the list
+            inFile.close();
+            cout << "Tasks loaded from file.\n";
+        } else {
+            cerr << "Error: Unable to open file for reading.\n";
         }
-
-        inFile.close();
-        cout << "Tasks loaded from file.\n";
-    } else {
-        cerr << "Error: Unable to open file for reading.\n";
     }
-}
 
+    // Function to get a valid priority from the user
+    int getPriority() {
+        int priority;
+        while (true) {
+            cout << "Enter Priority (1-5): ";
+            cin >> priority;
+            if (!cin.fail() && priority >= 1 && priority <= 5) {
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clean input buffer
+                return priority;
+            } else {
+                cin.clear(); // Reset failbit
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
+                cout << "Invalid input. Please enter a number between 1 and 5.\n";
+            }
+        }
+    }
+
+    // Function to display tasks sorted by priority
+    void displayTasksSortedByPriority() {
+        vector<Task*> sortedTasks;
+        for (const auto& task : taskList) {
+            sortedTasks.push_back(task.get());
+        }
+        sort(sortedTasks.begin(), sortedTasks.end(), [](Task* a, Task* b) {
+            return a->getPriority() > b->getPriority(); // Sort by descending priority
+        });
+        for (const auto& task : sortedTasks) {
+            task->displayTask();
+        }
+    }
+
+    // Function to display only completed tasks
+    void displayCompletedTasks() {
+        for (const auto& task : taskList) {
+            if (task->isTaskCompleted()) {
+                task->displayTask();
+            }
+        }
+    }
+
+    // Function to display only incomplete tasks
+    void displayIncompleteTasks() {
+        for (const auto& task : taskList) {
+            if (!task->isTaskCompleted()) {
+                task->displayTask();
+            }
+        }
+    }
 
     // Function to display the menu
     void displayMenu() {
-        cout <<endl;
-        cout << "Task Manager Menu:\n";
-        cout <<endl;
+        cout << "\nTask Manager Menu:\n";
         cout << "1. Add Task\n";
         cout << "2. Remove Task\n";
         cout << "3. Display All Tasks\n";
         cout << "4. Mark Task as Completed\n";
         cout << "5. Save Tasks to File\n";
         cout << "6. Load Tasks from File\n";
-        cout << "7. Exit\n";
-        cout <<endl;
+        cout << "7. Display Tasks Sorted by Priority\n";
+        cout << "8. Display Completed Tasks\n";
+        cout << "9. Display Incomplete Tasks\n";
+        cout << "10. Exit\n";
     }
 
     // Function to handle user choices securely
     void handleUserChoice() {
         int choice = 0;
-        while (choice != 7) {
+        while (choice != 10) {
             displayMenu();
             cin >> choice;
 
@@ -209,33 +259,22 @@ namespace TaskManagerApp {
             if (cin.fail()) {
                 cin.clear();  // Clear the error flag
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');  // Ignore invalid input
-                cout << "Invalid input. Please enter a number between 1 and 7.\n";
+                cout << "Invalid input. Please try again.\n";
                 continue;
             }
 
             switch (choice) {
                 case 1: {
-                    int id, priority;
                     string title, description, dueDate;
-                    cout << "Enter Task ID: ";
-                    cin >> id;
-                    if (cin.fail()) {
-                        cin.clear();
-                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                        cerr << "Invalid Task ID. Please enter a valid number.\n";
-                        break;
-                    }
-                    cin.ignore();
                     cout << "Enter Title: ";
+                    cin.ignore();
                     getline(cin, title);
                     cout << "Enter Description: ";
                     getline(cin, description);
-                    cout << "Enter Priority (1-5): ";
-                    cin >> priority;
-                    cin.ignore();
+                    int priority = getPriority();
                     cout << "Enter Due Date: ";
                     getline(cin, dueDate);
-                    addTask(id, title, description, priority, dueDate);
+                    addTask(title, description, priority, dueDate);
                     break;
                 }
                 case 2: {
@@ -255,22 +294,39 @@ namespace TaskManagerApp {
                     markTaskCompleted(id);
                     break;
                 }
-                case 5:
-                    saveTasksToFile();
+                case 5: {
+                    string filename;
+                    cout << "Enter filename to save tasks: ";
+                    cin >> filename;
+                    saveTasksToFile(filename);
                     break;
-                case 6:
-                    loadTasksFromFile();
+                }
+                case 6: {
+                    string filename;
+                    cout << "Enter filename to load tasks: ";
+                    cin >> filename;
+                    loadTasksFromFile(filename);
                     break;
+                }
                 case 7:
+                    displayTasksSortedByPriority();
+                    break;
+                case 8:
+                    displayCompletedTasks();
+                    break;
+                case 9:
+                    displayIncompleteTasks();
+                    break;
+                case 10:
                     cout << "Exiting program.\n";
                     break;
                 default:
-                    cout << "Invalid choice. Please choose between 1 and 7.\n";
-                    break;
+                    cout << "Invalid option. Please try again.\n";
             }
         }
     }
-}
+
+}  // namespace TaskManagerApp
 
 int main() {
     TaskManagerApp::handleUserChoice();
